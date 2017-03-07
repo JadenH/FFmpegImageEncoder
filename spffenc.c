@@ -1,30 +1,30 @@
 /*spffenc.c
-   Authors: Adam Waggoner and Jaden Holladay
-
-   Contains functionality for encoding .spff files
-
-   EXPLANATION OF COMPRESSION:
-   Our compression method uses the same trick computers monitors use to display
-   color on screen on a bigger scale in an image. Monitors display pixels using 3
-   leds colored red, green and blue. Since the human eye can't discern the individual
-   lights, the result appears to be a solid color.
-
-   Our encoder takes pixel information into a 24 bit RGB value with 8 bits per channel.
-   For each pixel, we only store one of the three channels, effectively cutting the
-   file size of an image down to 1 byte per pixel. Sice pixels are generally small in
-   large images, this means that the human eye averages contiguous pixels and can
-   reconstruct a fairly recognizable image.
-
-   The decoder uses data from adjacent pixels to get an average value for the two
-   channels that weren't stored, so each pixel has a similar color value to the
-   original image. This works because in most images (especially pictures) contiguous
-   pixels are usually very similar.
-
-   CODE CITATIONS:
-   We based our encoder and decoder on bmp.c and bmpenc.c from the ffmpeg source code
-
-   Our code to convert pixel format was based on this stackoverflow post
-   http://stackoverflow.com/questions/12831761/how-to-resize-a-picture-using-ffmpegs-sws-scale
+ * Authors: Adam Waggoner and Jaden Holladay
+ *
+ * Contains functionality for encoding .spff files
+ *
+ * EXPLANATION OF COMPRESSION:
+ * Our compression method uses the same trick computers monitors use to display
+ * color on screen on a bigger scale in an image. Monitors display pixels using 3
+ * leds colored red, green and blue. Since the human eye can't discern the individual
+ * lights, the result appears to be a solid color.
+ *
+ * Our encoder takes pixel information into a 24 bit RGB value with 8 bits per channel.
+ * For each pixel, we only store one of the three channels, effectively cutting the
+ * file size of an image down to 1 byte per pixel. Sice pixels are generally small in
+ * large images, this means that the human eye averages contiguous pixels and can
+ * reconstruct a fairly recognizable image.
+ *
+ * The decoder uses data from adjacent pixels to get an average value for the two
+ * channels that weren't stored, so each pixel has a similar color value to the
+ * original image. This works because in most images (especially pictures) contiguous
+ * pixels are usually very similar.
+ *
+ * CODE CITATIONS:
+ * We based our encoder and decoder on bmp.c and bmpenc.c from the ffmpeg source code
+ *
+ * Our code to convert pixel format was based on this stackoverflow post
+ * http://stackoverflow.com/questions/12831761/how-to-resize-a-picture-using-ffmpegs-sws-scale
  */
 
 #include "libavutil/imgutils.h"
@@ -42,19 +42,17 @@
 #include "spffenc.h"
 
 static av_cold int spff_encode_init(AVCodecContext *avctx){
-
+  // Set the number of bits per sample (pixel)
   avctx->bits_per_coded_sample = 8;
-
   return 0;
 }
 
-//This function returns the rgb values of a pixel at a given row and column of an AVFrame
+// This function returns the rgb values of a pixel at a given row and column of an AVFrame
 static RGBValues* get_pixel_rgb  (AVFrame const * pict,
                                   const size_t row,
                                   const size_t col)
 {
-  return (RGBValues*)&pict->data[0][row *
-                                    pict->linesize[0] + col * 3];
+  return (RGBValues*)&pict->data[0][row * pict->linesize[0] + col * 3];
 }
 
 static int spff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
@@ -62,12 +60,12 @@ static int spff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 {
   const AVFrame * const p = pict;
 
-  //The size in bytes of a .spff header
+  // The size in bytes of a .spff header
   const int HEADER_SIZE = 8;
 
-  //CONVERT TO RGB24 PIXEL FORMAT
-  //TODO: cite this
-  //NOTE: Colors are not exactly the same
+  // CONVERT TO RGB24 PIXEL FORMAT
+  // TODO: cite this
+  // NOTE: Colors are not exactly the same
   struct SwsContext *resize;
   resize = sws_getContext(avctx->width, avctx->height,
                           avctx->pix_fmt,
@@ -91,45 +89,45 @@ static int spff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 
 
   int n_bytes_image, n_bytes_per_row, ret;
-  //const uint32_t *pal = NULL;
-  //uint32_t palette256[256];
-  //int pad_bytes_per_row, pal_entries = 0, compression = BMP_RGB;
+  // const uint32_t *pal = NULL;
+  // uint32_t palette256[256];
+  // int pad_bytes_per_row, pal_entries = 0, compression = BMP_RGB;
 
-  //Number of bytes in a row, since we are only storing
-  //one byte per pixel, this should be equal to the image width
+  // Number of bytes in a row, since we are only storing
+  // one byte per pixel, this should be equal to the image width
   n_bytes_per_row = avctx->width;
 
-  //Bytes in the entire image
+  // Bytes in the entire image
   n_bytes_image = avctx->height * (n_bytes_per_row) + HEADER_SIZE;
 
-  //Attempt to allocate the necesarry data to store the image info, return if allocation fails
+  // Attempt to allocate the necesarry data to store the image info, return if allocation fails
   if((ret = ff_alloc_packet2(avctx, pkt, n_bytes_image, 0)) <0)
     return ret;
 
-  //Pointer to destination memory
+  // Pointer to destination memory
   uint8_t *buf;
-  //Set buf to the address of the outgoing AVPacket's data
+  // Set buf to the address of the outgoing AVPacket's data
   buf = pkt->data;
 
-  //Write header
+  // Write header
   bytestream_put_le32(&buf, avctx->width);            // Width
   bytestream_put_le32(&buf, avctx->height);           // Height
 
-  //TODO: Remove these lines once we figure out why color space conversion is losing data
+  // TODO: Remove these lines once we figure out why color space conversion is losing data
   RGBValues* rgb = get_pixel_rgb(frame2, 1, 1);
   printf("COLOR CHANNEL R: %d\n",rgb->Red );
   printf("COLOR CHANNEL G: %d\n",rgb->Blue );
   printf("COLOR CHANNEL B: %d\n",rgb->Green );
 
-  //Set buffer position to first pixel
+  // Set buffer position to first pixel
   buf = pkt->data + HEADER_SIZE;
 
-  //Write data for each pixel
+  // Write data for each pixel
   for(int i = 0; i < avctx->height; i++)
   {
     for(int j = 0; j < avctx->width; j++)
     {
-      //The value of the color channel being written for this pixel
+      // The value of the color channel being written for this pixel
       uint8_t channel;
 
       /* This switch statement alternates writing red, green, blue channels for
@@ -150,17 +148,17 @@ static int spff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
           break;
       }
 
-      //write the appropriate color channel of this pixel to the file
+      // write the appropriate color channel of this pixel to the file
       bytestream_put_byte(&buf,channel);
     }
   }
 
   pkt->flags |= AV_PKT_FLAG_KEY;
 
-  //Indicates to ffmpeg that the packet is ready to be written to a file
+  // Indicates to ffmpeg that the packet is ready to be written to a file
   *got_packet = 1;
 
-  //TODO: free memory used by avalloc?
+  // TODO: free memory used by avalloc?
 
   return 0;
 }
@@ -173,7 +171,7 @@ AVCodec ff_spff_encoder = { /* SPFF description */
   .init      = spff_encode_init,
   .encode2   = spff_encode_frame,
   /*.pix_fmts       = (const enum AVPixelFormat[]){
-      AV_PIX_FMT_RGB8, AV_PIX_FMT_BGR8, AV_PIX_FMT_RGB4_BYTE, AV_PIX_FMT_BGR4_BYTE,
-      AV_PIX_FMT_GRAY8, AV_PIX_FMT_PAL8, AV_PIX_FMT_NONE
-     }*/
+   *  AV_PIX_FMT_RGB8, AV_PIX_FMT_BGR8, AV_PIX_FMT_RGB4_BYTE, AV_PIX_FMT_BGR4_BYTE,
+   *  AV_PIX_FMT_GRAY8, AV_PIX_FMT_PAL8, AV_PIX_FMT_NONE
+   * }*/
 };

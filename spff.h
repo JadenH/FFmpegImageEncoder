@@ -1,7 +1,7 @@
 /*spff.h
-   Authors: Adam Waggoner and Jaden Holladay
-
-   Contains definitions for use in both spffenc.c and spffdec.c
+ * Authors: Adam Waggoner and Jaden Holladay
+ *
+ * Contains definitions for use in both spffenc.c and spffdec.c
  */
 
 #ifndef SPFFH
