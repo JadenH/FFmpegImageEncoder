@@ -66,8 +66,6 @@ static int spff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
   const int HEADER_SIZE = 8;
 
   //CONVERT TO RGB24 PIXEL FORMAT
-  //TODO: cite this
-  //NOTE: Colors are not exactly the same
   struct SwsContext *resize;
   resize = sws_getContext(avctx->width, avctx->height,
                           avctx->pix_fmt,
@@ -91,9 +89,6 @@ static int spff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 
 
   int n_bytes_image, n_bytes_per_row, ret;
-  //const uint32_t *pal = NULL;
-  //uint32_t palette256[256];
-  //int pad_bytes_per_row, pal_entries = 0, compression = BMP_RGB;
 
   //Number of bytes in a row, since we are only storing
   //one byte per pixel, this should be equal to the image width
@@ -114,12 +109,6 @@ static int spff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
   //Write header
   bytestream_put_le32(&buf, avctx->width);            // Width
   bytestream_put_le32(&buf, avctx->height);           // Height
-
-  //TODO: Remove these lines once we figure out why color space conversion is losing data
-  RGBValues* rgb = get_pixel_rgb(frame2, 1, 1);
-  printf("COLOR CHANNEL R: %d\n",rgb->Red );
-  printf("COLOR CHANNEL G: %d\n",rgb->Blue );
-  printf("COLOR CHANNEL B: %d\n",rgb->Green );
 
   //Set buffer position to first pixel
   buf = pkt->data + HEADER_SIZE;
@@ -159,8 +148,6 @@ static int spff_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 
   //Indicates to ffmpeg that the packet is ready to be written to a file
   *got_packet = 1;
-
-  //TODO: free memory used by avalloc?
 
   return 0;
 }
